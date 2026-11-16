@@ -1,12 +1,60 @@
 // dodgefont UI
-const VER = '1.0.0';
+const VER = '1.1.0';
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const tick = () => new Promise(r => setTimeout(r));
 const get = (o, k) => k.split('.').reduce((a, b) => a[b], o);
 const set = (o, k, v) => { const ks = k.split('.'), l = ks.pop(); ks.reduce((a, b) => a[b], o)[l] = v; };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-const PRESETS = [['inter', 'Inter'], ['space-grotesk', 'Space Grotesk'], ['archivo', 'Archivo'], ['playfair-display', 'Playfair Display'], ['dm-serif-display', 'DM Serif Display'], ['fraunces', 'Fraunces'], ['roboto-mono', 'Roboto Mono']];
+// [id, label, group, google/fonts path for Korean bases (served whole, not Latin-subset)]
+const PRESETS = [
+  ['inter', 'Inter', '그로테스크'], ['space-grotesk', 'Space Grotesk', '그로테스크'], ['archivo', 'Archivo', '그로테스크'], ['dela-gothic-one', 'Dela Gothic One', '그로테스크'], ['rubik-mono-one', 'Rubik Mono One', '그로테스크'],
+  ['playfair-display', 'Playfair Display', '세리프'], ['dm-serif-display', 'DM Serif Display', '세리프'], ['fraunces', 'Fraunces', '세리프'], ['bodoni-moda', 'Bodoni Moda', '세리프'],
+  ['abril-fatface', 'Abril Fatface', '디스플레이'], ['alfa-slab-one', 'Alfa Slab One', '디스플레이'], ['rye', 'Rye', '디스플레이'], ['bagel-fat-one', 'Bagel Fat One', '디스플레이'], ['permanent-marker', 'Permanent Marker', '디스플레이'],
+  ['roboto-mono', 'Roboto Mono', '모노·픽셀'], ['space-mono', 'Space Mono', '모노·픽셀'], ['vt323', 'VT323', '모노·픽셀'], ['silkscreen', 'Silkscreen', '모노·픽셀'],
+  ['nanum-gothic', '나눔고딕', '한글', 'ofl/nanumgothic/NanumGothic-Regular.ttf'], ['nanum-myeongjo', '나눔명조', '한글', 'ofl/nanummyeongjo/NanumMyeongjo-Regular.ttf'],
+  ['black-han-sans', '검은고딕 Black Han Sans', '한글', 'ofl/blackhansans/BlackHanSans-Regular.ttf'], ['do-hyeon', '도현 Do Hyeon', '한글', 'ofl/dohyeon/DoHyeon-Regular.ttf'],
+  ['nanum-brush', '나눔손글씨 붓', '한글', 'ofl/nanumbrushscript/NanumBrushScript-Regular.ttf'],
+];
+const isKo = id => !!(PRESETS.find(p => p[0] === id) || [])[3];
+const SAMPLES = {
+  en: { head: 'Dodge the ordinary type.', body: 'Quick zephyrs blow, vexing daft Jim. A typeface is a voice; give it weight, rhythm and hierarchy, then ship it to every desk.' },
+  ko: { head: '한글은 왜 이탤릭이 없을까?', body: '다람쥐 헌 쳇바퀴에 타고파. 디자인 필수 과목, 위계와 리듬을 입혀 바로 내보내세요. Typography 2026.' },
+};
+const STYLE0 = { weight: 0, width: 100, height: 100, slant: 0, round: 0, tracking: 0, contrast: 0, penAngle: 0, rough: 0, jitter: 0, mono: false, snap: 40, join: 'round', effect: 'none', fx: 30, module: 'square', moduleSize: 100 };
+// Style personalities read off the Instagram "Saved" references: each is a base + engine + style overrides.
+const RECIPES = [
+  { id: 'swiss', label: '스위스 그로테스크', ref: 'menu bar. · WAVE · A4', base: 'inter', style: { weight: 26, tracking: -25 } },
+  { id: 'didone', label: '디돈 에디토리얼', ref: 'Outlander · 매거진 표지', base: 'bodoni-moda', style: { weight: -8, contrast: 38, penAngle: 0, tracking: -10 } },
+  { id: 'fatface', label: '팻페이스 포스터', ref: '19세기 극장 포스터', base: 'abril-fatface', style: { width: 92, contrast: 20 } },
+  { id: 'woodtype', label: '우드타입 슬랩', ref: 'Open-source Projects', base: 'alfa-slab-one', style: { width: 94, rough: 2 } },
+  { id: 'western', label: '웨스턴 우드타입', ref: 'BOZ\'s JUBA 레터프레스', base: 'rye', style: { rough: 2.5 } },
+  { id: 'marker', label: '마커 · 브러시', ref: '디자인 필수 과목', base: 'permanent-marker', style: { weight: 8, rough: 7, round: 8 } },
+  { id: 'calligraffiti', label: '캘리그래피 태그', ref: '그래피티 · 아이패드 레터링', base: 'inter', style: { weight: -30, contrast: 70, penAngle: 35, slant: 14, rough: 3, round: 6 } },
+  { id: 'roughink', label: '레트로 러프 잉크', ref: 'GOOD NIGHT 콜라주', base: 'dela-gothic-one', style: { rough: 12, round: 6, tracking: 10 } },
+  { id: 'pixel', label: '픽셀 LED', ref: '안녕하세요 픽셀 사인', engine: 'pixel', base: 'inter', style: { module: 'square', moduleSize: 86 }, rows: 12 },
+  { id: 'dotmatrix', label: '도트 매트릭스', ref: '1:38 전광판 숫자', engine: 'pixel', base: 'inter', style: { module: 'circle', moduleSize: 84 }, rows: 9 },
+  { id: 'crt', label: 'CRT 스캔라인', ref: 'ASCII · 터미널 화면', engine: 'pixel', base: 'vt323', style: { module: 'hline', moduleSize: 100 }, rows: 14 },
+  { id: 'grid360', label: '그리드 모듈러', ref: '360 Design Festival', engine: 'modular', base: 'space-grotesk', style: { snap: 70, weight: 30, join: 'miter' } },
+  { id: 'bubble', label: '버블 · 퍼피', ref: '+++ 블롭 · 캐릭터 카드', base: 'bagel-fat-one', style: { weight: 30, round: 55 } },
+  { id: 'melt', label: '멜팅 드립', ref: 'melt melt 패키지', base: 'dela-gothic-one', style: { weight: 10, round: 18, effect: 'drip', fx: 38 } },
+  { id: 'cutpaper', label: '컷페이퍼 스텐실', ref: '리놀륨 판화 레터링', base: 'archivo', style: { weight: 40, effect: 'stencil', fx: 48, rough: 3 } },
+  { id: 'foam3d', label: '3D 익스트루드', ref: '스펀지 알파벳 · 3D 에셋', base: 'bagel-fat-one', style: { weight: 14, round: 30, effect: 'extrude', fx: 120 } },
+  { id: 'halftone', label: '하프톤 프린트', ref: '하프톤 인물 포스터', base: 'alfa-slab-one', style: { weight: 10, effect: 'halftone', fx: 34 } },
+  { id: 'sand', label: '샌드 디졸브', ref: '모래로 흩어지는 한자', base: 'dela-gothic-one', style: { weight: 12, effect: 'erode', fx: 34 } },
+  { id: 'kinetic', label: '키네틱 바운스', ref: 'NOW IN FIGMA 3D TRANSFORMS', base: 'space-grotesk', style: { weight: 34, jitter: 9, tracking: 20 } },
+  { id: 'neon', label: '네온 인라인', ref: '네온 사인 · 글로우 화면', base: 'rubik-mono-one', style: { weight: 6, round: 30, effect: 'inline', fx: 22 } },
+  { id: 'outline', label: '아웃라인 디스플레이', ref: 'CHEAT CODES', base: 'dela-gothic-one', style: { weight: 10, round: 20, effect: 'outline', fx: 16 } },
+  { id: 'mono', label: '모노 타자기', ref: 'Taking our duo… 캡션 · [works]', base: 'space-mono', style: { mono: true, tracking: 30 } },
+  { id: 'condensed', label: '컨덴스드 배너', ref: '세로 현수막 · Gallery SP', base: 'archivo', style: { width: 62, height: 118, weight: 34, tracking: -10 } },
+  { id: 'wide', label: '와이드 익스텐디드', ref: 'THANK YOU 스트레치 · A4', base: 'inter', style: { width: 150, weight: 22 } },
+  { id: 'hairline', label: '울트라 씬', ref: 'Strategic Foundation 01', base: 'inter', style: { weight: -46, tracking: 20 } },
+  { id: 'kogothic', label: '한글 굵은 고딕', ref: '오로지 폰트로만 · 썸네일 자막', base: 'black-han-sans', style: { tracking: -20 }, ko: true },
+  { id: 'komyeongjo', label: '한글 명조', ref: '모의고사 시험지 · 에디토리얼', base: 'nanum-myeongjo', style: { contrast: 12, penAngle: 0 }, ko: true },
+  { id: 'koitalic', label: '한글 이탤릭', ref: '한글은 왜 이탤릭이 없을까?', base: 'nanum-gothic', style: { weight: 10, slant: 12 }, italic: true, ko: true },
+  { id: 'kobrush', label: '한글 붓글씨', ref: '粉 · 디자인 필수 과목', base: 'nanum-brush', style: { weight: 10, rough: 5, round: 4 }, ko: true },
+  { id: 'koround', label: '한글 둥근 디스플레이', ref: '시계 숫자 · 귀여운 카드뉴스', base: 'do-hyeon', style: { weight: 8, round: 24 }, ko: true },
+];
 const HINTS = {
   outline: '베이스 폰트의 윤곽선을 가져와 굵기·폭·기울기·라운드·이펙트를 입힙니다.',
   modular: '윤곽선을 그리드에 스냅해 기하학적 모듈 서체로 재구성합니다. "그리드" 값이 해상도입니다.',
@@ -15,7 +63,7 @@ const HINTS = {
 
 const DEFAULTS = () => ({
   name: 'Dodge Sans', engine: 'outline', preset: 'inter', charset: 'latin', extra: '',
-  style: { weight: 0, width: 100, slant: 0, round: 0, tracking: 0, snap: 40, join: 'round', effect: 'none', fx: 30, module: 'square', moduleSize: 100 },
+  style: { ...STYLE0 }, recipe: '',
   instances: [
     { name: 'Thin', weightClass: 100, delta: -45, on: true }, { name: 'Light', weightClass: 300, delta: -22, on: true },
     { name: 'Regular', weightClass: 400, delta: 0, on: true }, { name: 'Medium', weightClass: 500, delta: 14, on: true },
@@ -27,13 +75,14 @@ const DEFAULTS = () => ({
     { name: 'Display', inst: 'Black', step: 6 }, { name: 'H1', inst: 'Bold', step: 4 }, { name: 'H2', inst: 'Bold', step: 3 },
     { name: 'H3', inst: 'Medium', step: 2 }, { name: 'Body', inst: 'Regular', step: 0 }, { name: 'Caption', inst: 'Light', step: -1 },
   ],
-  sample: { head: 'Dodge the ordinary type.', body: 'Quick zephyrs blow, vexing daft Jim. A typeface is a voice; give it weight, rhythm and hierarchy, then ship it to every desk.' },
+  sample: { ...SAMPLES.en },
   pixel: { rows: 12, desc: 3, glyphs: {} },
   tab: 'specimen', glyphInst: 'Regular',
 });
 
 let state = DEFAULTS(), src = null, srcUpload = null; // srcUpload: ArrayBuffer of a user font
-try { const s = JSON.parse(localStorage.getItem('dodgefont') || 'null'); if (s) state = Object.assign(DEFAULTS(), s); } catch {}
+const restore = s => { const d = DEFAULTS(); return Object.assign(d, s, { style: { ...d.style, ...(s.style || {}) } }); };
+try { const s = JSON.parse(localStorage.getItem('dodgefont') || 'null'); if (s) state = restore(s); } catch {}
 const save = () => { try { localStorage.setItem('dodgefont', JSON.stringify(state)); } catch {} };
 const status = t => $('#status').textContent = t;
 
@@ -49,13 +98,38 @@ async function loadPreset(id) {
   const p = PRESETS.find(x => x[0] === id) || PRESETS[0];
   status(p[1] + ' 불러오는 중…');
   try {
-    const r = await fetch(`https://cdn.jsdelivr.net/fontsource/fonts/${p[0]}@latest/latin-400-normal.woff`);
+    if (p[3]) status(p[1] + ' 불러오는 중… (한글 전체 글리프라 1–8MB)');
+    const r = await fetch(p[3] ? `https://cdn.jsdelivr.net/gh/google/fonts@main/${p[3]}` : `https://cdn.jsdelivr.net/fontsource/fonts/${p[0]}@latest/latin-400-normal.woff`);
     if (!r.ok) throw new Error(r.status);
     srcUpload = null; await loadSource(await r.arrayBuffer(), p[1]);
   } catch (e) { status('프리셋을 불러오지 못했습니다: ' + e.message); }
 }
-$('#preset').innerHTML = PRESETS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('') + '<option value="upload" disabled>업로드한 폰트</option>';
-$('#preset').onchange = e => { state.preset = e.target.value; save(); loadPreset(state.preset); };
+$('#preset').innerHTML = [...new Set(PRESETS.map(p => p[2]))].map(g => `<optgroup label="${g}">${PRESETS.filter(p => p[2] === g).map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</optgroup>`).join('') + '<option value="upload" disabled>업로드한 폰트</option>';
+function useKorean(on) { // Korean base → Korean sample + 2,350-syllable export set
+  const cur = JSON.stringify(state.sample), want = on ? SAMPLES.ko : SAMPLES.en;
+  if (cur === JSON.stringify(SAMPLES.en) || cur === JSON.stringify(SAMPLES.ko)) state.sample = { ...want };
+  if (on && state.charset === 'latin') state.charset = 'ks2350';
+  if (!on && state.charset === 'ks2350') state.charset = 'latin';
+}
+$('#preset').onchange = e => { state.preset = e.target.value; state.recipe = ''; useKorean(isKo(state.preset)); syncControls(); save(); loadPreset(state.preset); };
+
+// ---------- recipes ----------
+$('#recipes').innerHTML = RECIPES.map(r => `<button data-r="${r.id}">${esc(r.label)}<small>${esc(r.ref)}</small></button>`).join('');
+$('#recipes').onclick = async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const r = RECIPES.find(x => x.id === b.dataset.r);
+  state.recipe = r.id;
+  state.style = { ...STYLE0, ...r.style };
+  state.engine = r.engine || 'outline';
+  state.italic = !!r.italic;
+  if (r.rows) { state.pixel.rows = r.rows; state.pixel.desc = Math.round(r.rows / 4); }
+  if (state.engine === 'pixel') state.pixel.glyphs = {}; // re-pixelate at the recipe's grid once the base is loaded
+  state.tab = state.engine === 'pixel' ? 'pixel' : 'specimen';
+  useKorean(!!r.ko);
+  syncControls();
+  if (r.base !== state.preset || !src) { state.preset = r.base; save(); await loadPreset(r.base); }
+  else { if (state.engine === 'pixel') reseedPixels(); schedule(); }
+};
 $('#srcFile').onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
   srcUpload = await f.arrayBuffer(); state.preset = 'upload'; $('#preset').value = 'upload';
@@ -73,6 +147,7 @@ function syncControls() {
   }
   for (const box of $$('[data-chips]')) for (const b of box.children) b.classList.toggle('on', b.dataset.v === get(state, box.dataset.chips));
   for (const b of $('#engine').children) b.classList.toggle('on', b.dataset.v === state.engine);
+  for (const b of $('#recipes').children) b.classList.toggle('on', b.dataset.r === state.recipe);
   $('#engineHint').textContent = HINTS[state.engine];
   $('#snapRow').hidden = state.engine !== 'modular';
   $('#moduleBox').hidden = state.engine !== 'pixel';
@@ -300,7 +375,7 @@ $('#projFile').onchange = async e => {
   try {
     const p = JSON.parse(await f.text()); if (p.app !== 'dodgefont') throw new Error('dodgefont 프로젝트가 아닙니다');
     const { srcB64, app, ver, ...rest } = p;
-    state = Object.assign(DEFAULTS(), rest); syncControls();
+    state = restore(rest); syncControls();
     if (srcB64) { srcUpload = Uint8Array.from(atob(srcB64), c => c.charCodeAt(0)).buffer; await loadSource(srcUpload.slice(0), f.name); }
     else await loadPreset(state.preset === 'upload' ? 'inter' : state.preset);
   } catch (err) { status('프로젝트를 열지 못했습니다: ' + err.message); }

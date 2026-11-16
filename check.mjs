@@ -1,6 +1,6 @@
 // Smoke check: node check.mjs — builds Bold Italic + outline-effect fonts from Inter, re-parses them, checks checksums/style bits.
 import fs from 'node:fs'; import vm from 'node:vm'; import assert from 'node:assert';
-const ctx = vm.createContext({ console, Math, DataView, Uint8Array, ArrayBuffer, Map, Set, Array, Object, String, Number });
+const ctx = vm.createContext({ console, Math, DataView, Uint8Array, ArrayBuffer, Map, Set, Array, Object, String, Number, TextDecoder });
 ctx.self = ctx; ctx.globalThis = ctx; ctx.navigator = { userAgent: "node" };
 for (const f of ['vendor/clipper.js', 'vendor/opentype.min.js', 'core.js']) vm.runInContext(fs.readFileSync(new URL(f, import.meta.url), 'utf8'), ctx);
 const { opentype, DF } = ctx;
@@ -21,6 +21,12 @@ const dv = new DataView(out.buf); let s = 0;
 for (let i = 0; i + 4 <= out.buf.byteLength; i += 4) s = (s + dv.getUint32(i)) >>> 0;
 assert.equal(s, 0xB1B0AFBA, 'whole-font checksum');
 
-for (const effect of ['outline', 'inline', 'stencil', 'shadow']) DF.buildFont({ ...cfg, engine: 'modular', style: { ...style, effect, round: 10 } }, { name: 'Black', weightClass: 900, delta: 80 });
+for (const effect of ['outline', 'inline', 'stencil', 'shadow', 'extrude', 'drip', 'halftone', 'erode']) {
+  const r = DF.buildFont({ ...cfg, engine: 'modular', style: { ...style, effect, round: 10, rough: 8, contrast: 40, penAngle: 30, jitter: 6, height: 110 } }, { name: 'Black', weightClass: 900, delta: 80 }, { chars: [...'AgO8'] });
+  assert.ok(opentype.parse(r.buf).charToGlyph('O').path.commands.length > 8, effect + ' keeps an outline');
+}
+const mono = opentype.parse(DF.buildFont({ ...cfg, style: { ...style, mono: true } }, { name: 'Regular', weightClass: 400, delta: 0 }, { chars: [...'iWm'] }).buf);
+assert.equal(mono.charToGlyph('i').advanceWidth, mono.charToGlyph('W').advanceWidth, 'mono advances');
+assert.equal(DF.charsetOf({ ...cfg, charset: 'ks2350' }).filter(c => /[\uac00-\ud7a3]/.test(c)).length, 2350, 'KS X 1001 Hangul');
 fs.writeFileSync(process.argv[2] || '/dev/null', Buffer.from(out.buf));
 console.log('ok', out.file, out.glyphCount, 'glyphs', out.buf.byteLength, 'bytes');
